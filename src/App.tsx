@@ -1,7 +1,8 @@
 import React from 'react';
+import { FC } from 'react';
 import { testSteamApiKey } from './services/steam';
 
-function App() {
+const App: FC = () => {
   return (
     <div className="min-h-screen bg-gray-100 p-4">
       <div className="max-w-4xl mx-auto">
@@ -23,6 +24,6 @@ function App() {
       </div>
     </div>
   );
-}
+};
 
 export default App; 
