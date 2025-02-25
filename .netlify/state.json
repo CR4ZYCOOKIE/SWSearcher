@@ -1,0 +1,20 @@
+{
+	"geolocation": {
+		"data": {
+			"city": "Apalachicola",
+			"country": {
+				"code": "US",
+				"name": "United States"
+			},
+			"subdivision": {
+				"code": "FL",
+				"name": "Florida"
+			},
+			"timezone": "America/New_York",
+			"latitude": 29.7255,
+			"longitude": -85.0063,
+			"postalCode": "32320"
+		},
+		"timestamp": 1740492324695
+	}
+}

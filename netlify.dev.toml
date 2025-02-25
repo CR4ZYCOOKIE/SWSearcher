@@ -1,0 +1,9 @@
+[dev]
+  port = 9999
+  targetPort = 3000
+  publish = "dist"
+  framework = "vite"
+  autoLaunch = true
+
+[functions]
+  directory = "netlify/functions" 

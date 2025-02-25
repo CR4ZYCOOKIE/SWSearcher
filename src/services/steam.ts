@@ -23,16 +23,20 @@ export async function testSteamApiKey(): Promise<void> {
 
 export async function searchWorkshop(query: string, appId: string): Promise<WorkshopItem[]> {
   try {
-    const response = await fetch('/.netlify/functions/steam-api', {
+    const response = await fetch('/.netlify/functions/steam', {
       method: 'POST',
-      body: JSON.stringify({ query, appId })
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ query })
     });
 
     if (!response.ok) {
-      throw new Error(`API returned ${response.status}: ${response.statusText}`);
+      throw new Error(`API returned ${response.status}`);
     }
 
     const data = await response.json();
+    console.log('Steam API response:', data);
 
     if (!data?.response?.publishedfiledetails) {
       throw new Error('Invalid response from API');
@@ -49,8 +53,20 @@ export async function searchWorkshop(query: string, appId: string): Promise<Work
       lastUpdated: new Date(parseInt(item.time_updated || Date.now() / 1000, 10) * 1000).toISOString().split('T')[0],
       tags: item.tags?.map((tag: any) => tag.tag) || []
     }));
-  } catch (error: any) {
+  } catch (error) {
     console.error('Error fetching workshop items:', error);
-    throw new Error('Failed to fetch workshop items. Please try again later.');
+    throw error;
+  }
+}
+
+export async function testApi(): Promise<void> {
+  try {
+    console.log('Testing API...');
+    const response = await fetch('/.netlify/functions/test-steam');
+    console.log('Response status:', response.status);
+    const data = await response.json();
+    console.log('API Test Results:', data);
+  } catch (error) {
+    console.error('API Test Error:', error);
   }
 } 

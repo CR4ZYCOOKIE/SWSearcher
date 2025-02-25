@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { Gamepad2, AlertCircle } from 'lucide-react';
 import { SearchBar } from './components/SearchBar';
 import { WorkshopItem } from './components/WorkshopItem';
-import { searchWorkshop } from './services/steam';
+import { searchWorkshop, testApi } from './services/steam';
 import type { WorkshopItem as WorkshopItemType } from './types';
 
 function App() {
@@ -79,6 +79,13 @@ function App() {
             )}
           </div>
         )}
+
+        <button
+          onClick={() => testApi()}
+          className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+        >
+          Test API Endpoints
+        </button>
       </div>
     </div>
   );
