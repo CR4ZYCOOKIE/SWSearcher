@@ -4,14 +4,13 @@
   functions = "functions"
 
 [dev]
-  command = "npm run dev"
-  port = 8888
+  port = 9999
   targetPort = 3000
 
 [functions]
   node_bundler = "esbuild"
 
 [[redirects]]
-  from = "/*"
-  to = "/index.html"
+  from = "/.netlify/functions/*"
+  to = "/.netlify/functions/:splat"
   status = 200 

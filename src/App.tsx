@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Gamepad2, AlertCircle } from 'lucide-react';
 import { SearchBar } from './components/SearchBar';
 import { WorkshopItem } from './components/WorkshopItem';
+import { Pagination } from './components/Pagination';
 import { searchWorkshop, testApi } from './services/steam';
 import type { WorkshopItem as WorkshopItemType } from './types';
 
@@ -10,6 +11,9 @@ function App() {
   const [searchResults, setSearchResults] = useState<WorkshopItemType[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalResults, setTotalResults] = useState(0);
+  const resultsPerPage = 20;
 
   const handleSearch = async (query: string) => {
     if (!query.trim()) {
@@ -19,17 +23,37 @@ function App() {
 
     setIsSearching(true);
     setError(null);
+    setCurrentPage(1);
 
     try {
-      const results = await searchWorkshop(query, '221100'); // DayZ AppID
-      setSearchResults(results);
+      const results = await searchWorkshop(query, '221100', 1);
+      setSearchResults(results.items);
+      setTotalResults(results.total);
     } catch (err) {
-      setError('Failed to fetch workshop items. Please check your Steam API key and try again.');
+      setError('Failed to fetch workshop items. Please try again.');
       console.error('Search error:', err);
     } finally {
       setIsSearching(false);
     }
   };
+
+  const handlePageChange = async (page: number) => {
+    setIsSearching(true);
+    setError(null);
+
+    try {
+      const results = await searchWorkshop(searchResults[0]?.query || '', '221100', page);
+      setSearchResults(results.items);
+      setCurrentPage(page);
+    } catch (err) {
+      setError('Failed to fetch page. Please try again.');
+      console.error('Page change error:', err);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const totalPages = Math.ceil(totalResults / resultsPerPage);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white p-8">
@@ -78,6 +102,14 @@ function App() {
               </p>
             )}
           </div>
+        )}
+
+        {searchResults.length > 0 && (
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={handlePageChange}
+          />
         )}
 
         <button

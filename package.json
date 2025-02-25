@@ -5,11 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "netlify-dev": "netlify dev",
+    "server": "node server.js",
     "build": "vite build",
-    "lint": "eslint .",
-    "preview": "vite preview",
-    "netlify": "netlify dev"
+    "preview": "vite preview"
   },
   "dependencies": {
     "framer-motion": "^11.0.8",

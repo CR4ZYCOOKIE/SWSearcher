@@ -1,5 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
+import { ExternalLink, AlertTriangle } from 'lucide-react';
 import type { WorkshopItem as WorkshopItemType } from '../types';
 
 interface WorkshopItemProps {
@@ -7,6 +8,8 @@ interface WorkshopItemProps {
 }
 
 export const WorkshopItem: React.FC<WorkshopItemProps> = ({ item }) => {
+  const steamUrl = `https://steamcommunity.com/sharedfiles/filedetails/?id=${item.id}`;
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -14,20 +17,68 @@ export const WorkshopItem: React.FC<WorkshopItemProps> = ({ item }) => {
       className="bg-gray-800/50 rounded-xl border border-gray-700 p-6 hover:border-gray-600 transition-colors"
     >
       <div className="flex gap-6">
-        <img
-          src={item.thumbnailUrl}
-          alt={item.title}
-          className="w-40 h-40 object-cover rounded-lg"
-        />
+        <a 
+          href={steamUrl} 
+          target="_blank" 
+          rel="noopener noreferrer"
+          className="flex-shrink-0"
+        >
+          <img
+            src={item.thumbnailUrl}
+            alt={item.title}
+            className="w-40 h-40 object-cover rounded-lg hover:opacity-90 transition-opacity"
+          />
+        </a>
+        
         <div className="flex-1">
-          <h2 className="text-2xl font-semibold">{item.title}</h2>
-          <p className="text-gray-400 mt-1">by {item.author}</p>
+          <div className="flex items-start justify-between">
+            <a 
+              href={steamUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="group"
+            >
+              <h2 className="text-2xl font-semibold group-hover:text-blue-400 transition-colors">
+                {item.title}
+              </h2>
+              <ExternalLink className="inline-block ml-2 opacity-0 group-hover:opacity-100 transition-opacity" size={16} />
+            </a>
+          </div>
+          
+          <p className="text-gray-400 mt-1">
+            by{' '}
+            <a 
+              href={item.author.workshopUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:text-blue-400 transition-colors"
+              title="View author's workshop"
+            >
+              {item.author.name}{' '}
+              <span className="text-gray-500">({item.author.id})</span>
+            </a>
+          </p>
           <p className="text-gray-300 mt-3 line-clamp-2">{item.description}</p>
           
           <div className="flex gap-6 mt-4 text-sm text-gray-400">
-            <span>⭐ {item.rating}/5</span>
-            <span>📥 {item.downloads.toLocaleString()}</span>
-            <span>🕒 Updated: {item.lastUpdated}</span>
+            <span title={`${item.currentRating.toFixed(1)} out of 5 stars (${item.totalRatings} ratings)`}>
+              ⭐ {item.rating}/5
+            </span>
+            <span title={`${item.currentSubscribers.toLocaleString()} current subscribers out of ${item.totalSubscribers.toLocaleString()} total`}>
+              📥 {item.downloads.toLocaleString()}
+            </span>
+            <span className="flex items-center gap-2">
+              🕒 Updated: {item.lastUpdated}
+              {item.banned && (
+                <span 
+                  className="flex items-center text-red-400 gap-1" 
+                  title={item.banReason || 'This item has been banned'}
+                >
+                  <AlertTriangle size={14} />
+                  Banned
+                </span>
+              )}
+            </span>
           </div>
 
           <div className="flex flex-wrap gap-2 mt-4">
