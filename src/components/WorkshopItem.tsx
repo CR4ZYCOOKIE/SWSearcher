@@ -1,13 +1,14 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { ExternalLink, AlertTriangle } from 'lucide-react';
+import { ExternalLink, AlertTriangle, Info } from 'lucide-react';
 import type { WorkshopItem as WorkshopItemType } from '../types';
 
 interface WorkshopItemProps {
   item: WorkshopItemType;
+  onViewDetails: (item: WorkshopItemType) => void;
 }
 
-export const WorkshopItem: React.FC<WorkshopItemProps> = ({ item }) => {
+export const WorkshopItem: React.FC<WorkshopItemProps> = ({ item, onViewDetails }) => {
   const steamUrl = `https://steamcommunity.com/sharedfiles/filedetails/?id=${item.id}`;
 
   return (
@@ -17,18 +18,26 @@ export const WorkshopItem: React.FC<WorkshopItemProps> = ({ item }) => {
       className="bg-gray-800/50 rounded-xl border border-gray-700 p-6 hover:border-gray-600 transition-colors"
     >
       <div className="flex gap-6">
-        <a 
-          href={steamUrl} 
-          target="_blank" 
-          rel="noopener noreferrer"
-          className="flex-shrink-0"
-        >
-          <img
-            src={item.thumbnailUrl}
-            alt={item.title}
-            className="w-40 h-40 object-cover rounded-lg hover:opacity-90 transition-opacity"
-          />
-        </a>
+        <div className="flex-shrink-0 flex flex-col items-center gap-4">
+          <a 
+            href={steamUrl} 
+            target="_blank" 
+            rel="noopener noreferrer"
+          >
+            <img
+              src={item.thumbnailUrl}
+              alt={item.title}
+              className="w-40 h-40 object-cover rounded-lg hover:opacity-90 transition-opacity"
+            />
+          </a>
+          <button
+            onClick={() => onViewDetails(item)}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-500 hover:bg-blue-600 rounded-lg transition-colors text-sm"
+          >
+            <Info size={16} />
+            More Info
+          </button>
+        </div>
         
         <div className="flex-1">
           <div className="flex items-start justify-between">

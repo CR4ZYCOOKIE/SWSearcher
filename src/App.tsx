@@ -4,8 +4,9 @@ import { Gamepad2, AlertCircle } from 'lucide-react';
 import { SearchBar } from './components/SearchBar';
 import { WorkshopItem } from './components/WorkshopItem';
 import { Pagination } from './components/Pagination';
-import { searchWorkshop, testApi } from './services/steam';
+import { searchWorkshop } from './services/steam';
 import type { WorkshopItem as WorkshopItemType } from './types';
+import { DetailsView } from './components/DetailsView';
 
 function App() {
   const [searchResults, setSearchResults] = useState<WorkshopItemType[]>([]);
@@ -14,6 +15,7 @@ function App() {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalResults, setTotalResults] = useState(0);
   const resultsPerPage = 20;
+  const [selectedItem, setSelectedItem] = useState<WorkshopItemType | null>(null);
 
   const handleSearch = async (query: string) => {
     if (!query.trim()) {
@@ -55,6 +57,14 @@ function App() {
 
   const totalPages = Math.ceil(totalResults / resultsPerPage);
 
+  const handleViewDetails = (item: WorkshopItemType) => {
+    setSelectedItem(item);
+  };
+
+  const handleBackToResults = () => {
+    setSelectedItem(null);
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white p-8">
       <div className="max-w-6xl mx-auto">
@@ -69,55 +79,54 @@ function App() {
           </h1>
         </motion.div>
 
-        <div className="flex flex-col items-center mb-12">
-          <SearchBar onSearch={handleSearch} />
-          <p className="mt-2 text-sm text-gray-400">
-            Enter a keyword to search DayZ workshop items
-          </p>
-        </div>
-
-        {error && (
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="flex items-center justify-center p-4 mb-8 bg-red-500/20 rounded-xl text-red-200"
-          >
-            <AlertCircle size={20} className="mr-2" />
-            {error}
-          </motion.div>
-        )}
-
-        {isSearching ? (
-          <div className="flex justify-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
-          </div>
+        {selectedItem ? (
+          <DetailsView item={selectedItem} onBack={handleBackToResults} />
         ) : (
-          <div className="space-y-4">
-            {searchResults.map(item => (
-              <WorkshopItem key={item.id} item={item} />
-            ))}
-            {searchResults.length === 0 && !isSearching && !error && (
-              <p className="text-center text-gray-400">
-                No results found. Try a different search term.
+          <>
+            <div className="flex flex-col items-center mb-12">
+              <SearchBar onSearch={handleSearch} />
+              <p className="mt-2 text-sm text-gray-400">
+                Enter a keyword to search DayZ workshop items.
               </p>
+            </div>
+
+            {error && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="flex items-center justify-center p-4 mb-8 bg-red-500/20 rounded-xl text-red-200"
+              >
+                <AlertCircle size={20} className="mr-2" />
+                {error}
+              </motion.div>
             )}
-          </div>
-        )}
 
-        {searchResults.length > 0 && (
-          <Pagination
-            currentPage={currentPage}
-            totalPages={totalPages}
-            onPageChange={handlePageChange}
-          />
-        )}
+            {isSearching ? (
+              <div className="flex justify-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {searchResults.map(item => (
+                  <WorkshopItem key={item.id} item={item} onViewDetails={handleViewDetails} />
+                ))}
+                {searchResults.length === 0 && !isSearching && !error && (
+                  <p className="text-center text-gray-400">
+                    No results found. Try a different search term.
+                  </p>
+                )}
+              </div>
+            )}
 
-        <button
-          onClick={() => testApi()}
-          className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-        >
-          Test API Endpoints
-        </button>
+            {searchResults.length > 0 && (
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={handlePageChange}
+              />
+            )}
+          </>
+        )}
       </div>
     </div>
   );

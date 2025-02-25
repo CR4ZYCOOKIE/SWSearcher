@@ -46,28 +46,32 @@ export async function searchWorkshop(query: string, appId: string, page: number 
       throw new Error('Invalid response from API');
     }
 
-    const items = data.response.publishedfiledetails.map((item: any) => ({
-      id: item.publishedfileid,
-      title: item.title || 'Untitled',
-      description: item.short_description || item.description || 'No description available',
-      author: {
-        id: item.creator || 'Unknown',
-        name: item.creator_name || 'Unknown',
-        profileUrl: item.creator_profile || null,
-        workshopUrl: `https://steamcommunity.com/profiles/${item.creator}/myworkshopfiles/?appid=221100`
-      },
-      thumbnailUrl: item.preview_url || 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=500&q=80',
-      rating: parseFloat(((item.vote_data?.score || 0) * 5).toFixed(1)) || 5,
-      downloads: parseInt(item.subscriptions || '0', 10),
-      lastUpdated: new Date(parseInt(item.time_updated || Date.now() / 1000, 10) * 1000).toISOString().split('T')[0],
-      tags: item.tags?.map((tag: any) => tag.tag) || [],
-      banned: item.banned || false,
-      banReason: item.ban_reason || undefined,
-      currentSubscribers: parseInt(item.subscriptions || '0', 10),
-      totalSubscribers: parseInt(item.lifetime_subscriptions || '0', 10),
-      currentRating: parseFloat(((item.vote_data?.score || 0) * 5).toFixed(1)) || 5,
-      totalRatings: parseInt(item.vote_data?.votes || '0', 10)
-    }));
+    const items = data.response.publishedfiledetails.map((item: any) => {
+      console.log('Raw item data:', item); // Debug log
+      return {
+        id: item.publishedfileid,
+        title: item.title || 'Untitled',
+        description: item.description || 'No description available',
+        author: {
+          id: item.creator || 'Unknown',
+          name: item.creator_name || 'Unknown',
+          profileUrl: item.creator_profile || null,
+          workshopUrl: `https://steamcommunity.com/profiles/${item.creator}/myworkshopfiles/?appid=221100`
+        },
+        thumbnailUrl: item.preview_url || 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=500&q=80',
+        rating: parseFloat(((item.vote_data?.score || 0) * 5).toFixed(1)) || 5,
+        downloads: parseInt(item.subscriptions || '0', 10),
+        lastUpdated: new Date(parseInt(item.time_updated || Date.now() / 1000, 10) * 1000).toISOString().split('T')[0],
+        tags: item.tags?.map((tag: any) => tag.tag) || [],
+        banned: item.banned || false,
+        banReason: item.ban_reason || undefined,
+        currentSubscribers: parseInt(item.subscriptions || '0', 10),
+        totalSubscribers: parseInt(item.lifetime_subscriptions || '0', 10),
+        currentRating: parseFloat(((item.vote_data?.score || 0) * 5).toFixed(1)) || 5,
+        totalRatings: parseInt(item.vote_data?.votes || '0', 10),
+        changeNotes: item.change_notes || undefined
+      };
+    });
 
     return {
       items,

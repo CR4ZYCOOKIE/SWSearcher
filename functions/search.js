@@ -16,6 +16,70 @@ async function fetchUserDetails(apiKey, steamIds) {
   }
 }
 
+async function fetchWorkshopChangelog(apiKey, fileId) {
+  try {
+    // Use the main details page instead of changelog
+    const url = `https://steamcommunity.com/sharedfiles/filedetails/?id=${fileId}`;
+    
+    // Add headers to look like a browser request
+    const response = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.5',
+        'Cache-Control': 'no-cache',
+        'Pragma': 'no-cache'
+      }
+    });
+
+    const html = await response.text();
+
+    // Look for the update history section
+    const historyMatch = html.match(/<div class="detailBox" id="updateHistoryContent">([\s\S]*?)<\/div>/i);
+    if (historyMatch) {
+      let changeNotes = historyMatch[1]
+        .replace(/<br\s*\/?>/gi, '\n')  // Convert <br> to newlines
+        .replace(/<[^>]*>/g, '')        // Remove other HTML tags
+        .replace(/&nbsp;/g, ' ')        // Fix HTML entities
+        .replace(/&amp;/g, '&')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/\n\s+/g, '\n')        // Remove extra spaces after newlines
+        .trim();
+
+      console.log('Found changelog:', {
+        fileId,
+        changeNotesPreview: changeNotes.substring(0, 100) + '...'
+      });
+
+      return changeNotes;
+    }
+
+    // If no update history found, try looking for individual updates
+    const updateMatch = html.match(/Update:([\s\S]*?)(?=Update:|$)/gi);
+    if (updateMatch) {
+      const changeNotes = updateMatch
+        .map(update => update.trim())
+        .join('\n\n')
+        .replace(/<br\s*\/?>/gi, '\n')
+        .replace(/<[^>]*>/g, '')
+        .replace(/&nbsp;/g, ' ')
+        .replace(/&amp;/g, '&')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/\n\s+/g, '\n')
+        .trim();
+
+      return changeNotes;
+    }
+
+    return null;
+  } catch (error) {
+    console.error('Error fetching changelog:', error);
+    return null;
+  }
+}
+
 export async function handler(event) {
   const headers = {
     'Access-Control-Allow-Origin': '*',
@@ -52,6 +116,7 @@ export async function handler(event) {
       return_short_description: '1',
       return_vote_data: '1',
       return_previews: '1',
+      return_change_notes: '1',
       format: 'json'
     });
 
@@ -95,13 +160,30 @@ export async function handler(event) {
     const fileIds = filteredDetails.map(item => item.publishedfileid);
     
     const detailsParams = new URLSearchParams();
+    detailsParams.append('key', apiKey);  // Add API key here
     detailsParams.append('itemcount', fileIds.length.toString());
     fileIds.forEach((id, index) => {
       detailsParams.append(`publishedfileids[${index}]`, id);
     });
 
+    // Add all the required parameters
+    detailsParams.append('return_change_notes', '1');
+    detailsParams.append('strip_description_bbcode', '0');
+    detailsParams.append('return_children', '0');
+    detailsParams.append('return_short_description', '1');
+    detailsParams.append('return_details', '1');
+    detailsParams.append('return_metadata', '1');
+    detailsParams.append('return_kv_tags', '1');
+    detailsParams.append('return_tags', '1');
+    detailsParams.append('return_previews', '1');
+    detailsParams.append('return_reactions', '1');
+    detailsParams.append('return_reviews', '1');
+    detailsParams.append('return_assets', '1');
+    detailsParams.append('return_languages', '1');
+
     const detailsUrl = 'https://api.steampowered.com/ISteamRemoteStorage/GetPublishedFileDetails/v1/';
     console.log('Getting details for IDs:', fileIds);
+    console.log('Details request params:', detailsParams.toString());
 
     const detailsResponse = await fetch(detailsUrl, {
       method: 'POST',
@@ -118,6 +200,17 @@ export async function handler(event) {
     const detailsData = await detailsResponse.json();
     console.log('Details response:', JSON.stringify(detailsData, null, 2));
 
+    // After getting the details response
+    console.log('Workshop item details:', JSON.stringify(
+      detailsData.response.publishedfiledetails.map(item => ({
+        id: item.publishedfileid,
+        title: item.title,
+        hasChangeNotes: !!item.change_notes
+      })),
+      null,
+      2
+    ));
+
     // Get unique creator IDs
     const creatorIds = [...new Set(
       detailsData.response.publishedfiledetails
@@ -133,15 +226,27 @@ export async function handler(event) {
       userDetails.map(user => [user.steamid, user])
     );
 
-    // Add user details to the workshop items
-    const itemsWithUserDetails = detailsData.response.publishedfiledetails.map(item => {
-      const user = userMap.get(item.creator);
-      return {
-        ...item,
-        creator_name: user?.personaname || 'Unknown',
-        creator_profile: user?.profileurl || null
-      };
-    });
+    // Then remove the separate fetchChangeNotes function and simplify the itemsWithUserDetails mapping:
+    const itemsWithUserDetails = await Promise.all(
+      detailsData.response.publishedfiledetails.map(async (item) => {
+        const user = userMap.get(item.creator);
+        const changelog = await fetchWorkshopChangelog(apiKey, item.publishedfileid);
+        
+        console.log('Workshop item:', {
+          id: item.publishedfileid,
+          title: item.title,
+          hasChangelog: !!changelog,
+          changelogPreview: changelog ? changelog.substring(0, 100) + '...' : 'None'
+        });
+        
+        return {
+          ...item,
+          creator_name: user?.personaname || 'Unknown',
+          creator_profile: user?.profileurl || null,
+          change_notes: changelog || undefined
+        };
+      })
+    );
 
     // Combine the data
     const combinedResponse = {

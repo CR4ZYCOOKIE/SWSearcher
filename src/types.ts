@@ -21,4 +21,5 @@ export interface WorkshopItem {
   totalSubscribers: number;
   currentRating: number;
   totalRatings: number;
+  changeNotes?: string;
 }
