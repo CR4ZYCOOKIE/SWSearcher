@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Search } from 'lucide-react';
 
 interface SearchBarProps {
@@ -6,29 +6,25 @@ interface SearchBarProps {
 }
 
 export const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
+  const [query, setQuery] = useState('');
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const form = e.target as HTMLFormElement;
-    const input = form.elements.namedItem('search') as HTMLInputElement;
-    onSearch(input.value);
+    onSearch(query);
   };
 
   return (
-    <form onSubmit={handleSubmit} className="w-full max-w-3xl">
-      <div className="relative flex items-center">
+    <form onSubmit={handleSubmit} className="w-full max-w-2xl">
+      <div className="relative">
         <input
           type="text"
-          name="search"
-          placeholder="Search workshop items..."
-          className="w-full px-6 py-4 bg-gray-800/50 backdrop-blur-xl rounded-xl text-white placeholder-gray-400 outline-none ring-2 ring-gray-700/50 focus:ring-blue-500/50 transition-all duration-300"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search for DayZ mods..."
+          className="w-full px-4 py-3 pl-12 bg-gray-800/50 rounded-xl border border-gray-700 focus:outline-none focus:border-blue-500 transition-colors"
         />
-        <button
-          type="submit"
-          className="absolute right-4 p-2 text-gray-400 hover:text-white transition-colors duration-200"
-        >
-          <Search size={20} />
-        </button>
+        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
       </div>
     </form>
   );
-}
+};
