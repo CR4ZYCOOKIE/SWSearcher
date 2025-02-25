@@ -1,5 +1,6 @@
 import { Handler } from '@netlify/functions';
 import fetch from 'node-fetch';
+import type { Response } from 'node-fetch';
 
 const STEAM_API_BASE = 'https://api.steampowered.com/ISteamUGC/GetQueryUGCResults/v1/';
 
