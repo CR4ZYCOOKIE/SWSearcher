@@ -1,6 +1,6 @@
-const fetch = require('node-fetch');
+import fetch from 'node-fetch';
 
-exports.handler = async function(event) {
+export async function handler(event) {
   // Handle OPTIONS request for CORS
   if (event.httpMethod === 'OPTIONS') {
     return {
@@ -63,6 +63,13 @@ exports.handler = async function(event) {
     const data = await response.json();
     console.log('Steam API response received');
 
+    // Log the raw vote data for debugging
+    if (data.response?.publishedfiledetails) {
+      data.response.publishedfiledetails.forEach(item => {
+        console.log(`Item ${item.publishedfileid} vote data:`, item.vote_data);
+      });
+    }
+
     return {
       statusCode: 200,
       headers,
@@ -76,7 +83,7 @@ exports.handler = async function(event) {
       body: JSON.stringify({ error: error.message })
     };
   }
-};
+}
 
 function processWorkshopData(data) {
     // ... existing code ...

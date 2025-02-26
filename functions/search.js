@@ -242,14 +242,28 @@ export async function handler(event) {
           const voteScore = parseFloat(item.vote_data.score) || 0;
           const voteCount = parseInt(item.vote_data.votes) || 0;
           
+          console.log(`Processing rating for item ${item.publishedfileid}:`, {
+            rawScore: item.vote_data.score,
+            parsedScore: voteScore,
+            rawVotes: item.vote_data.votes,
+            parsedVotes: voteCount
+          });
+          
           if (voteCount > 0) {
-            // Steam returns score as 0-1, convert to 0-5 scale
+            const starRating = voteScore * 5;
+            console.log(`Calculated star rating: ${starRating}`);
+            
             rating = {
-              score: Math.round((voteScore * 5) * 10) / 10, // Round to 1 decimal
+              score: Math.round(starRating * 10) / 10, // Round to 1 decimal
               votes: voteCount
             };
+          } else {
+            console.log('Item has no votes, keeping null rating');
           }
         }
+        
+        // Log the final rating object
+        console.log(`Final rating for item ${item.publishedfileid}:`, rating);
         
         // Add a helper property to clearly indicate unrated status
         return {
