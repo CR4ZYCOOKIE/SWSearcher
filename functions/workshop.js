@@ -43,6 +43,9 @@ export async function handler(event) {
       return_tags: 'true',
       return_details: 'true',
       return_metadata: 'true',
+      return_vote_data: 'true',
+      return_subscriptions: 'true',
+      return_ratings: 'true',
       format: 'json'
     });
 

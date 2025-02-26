@@ -117,6 +117,9 @@ export async function handler(event) {
       return_vote_data: '1',
       return_previews: '1',
       return_change_notes: '1',
+      return_subscriptions: '1',
+      return_for_sale_data: '1',
+      return_ratings: '1',
       format: 'json'
     });
 
@@ -254,34 +257,63 @@ export async function handler(event) {
           unrated: true
         };
 
-        // Check multiple possible vote data sources
-        const totalVotes = (
-          parseInt(item.votes_up || 0) + 
-          parseInt(item.votes_down || 0)
-        ) || parseInt(item.vote_data?.votes || 0);
+        // Try different ways Steam might provide the rating data
+        const votesUp = parseInt(item.votes_up || item.vote_up || 0);
+        const votesDown = parseInt(item.votes_down || item.vote_down || 0);
+        const voteData = item.vote_data || {};
+        const subscriptions = parseInt(item.subscriptions || 0);
 
-        const voteScore = parseFloat(item.vote_data?.score) || 
-                         (item.votes_up / (item.votes_up + item.votes_down)) || 
-                         parseFloat(item.score) || 0;
-
-        console.log('Vote calculation:', {
+        console.log('Vote data found:', {
           itemId: item.publishedfileid,
           title: item.title,
-          totalVotes,
-          voteScore,
-          votes_up: item.votes_up,
-          votes_down: item.votes_down
+          votesUp,
+          votesDown,
+          voteData,
+          subscriptions,
+          rawVoteData: item.vote_data,
+          rawScore: item.score,
+          favorited: item.favorited
         });
 
-        if (totalVotes > 0) {
-          const starRating = voteScore * 5;
+        if (votesUp > 0 || votesDown > 0) {
+          const totalVotes = votesUp + votesDown;
+          const score = votesUp / totalVotes; // Calculate percentage of positive votes
+          const starRating = score * 5; // Convert to 5-star scale
+
+          console.log('Calculated rating:', {
+            itemId: item.publishedfileid,
+            title: item.title,
+            totalVotes,
+            score,
+            starRating
+          });
+
           rating = {
-            score: Math.round(starRating * 10) / 10,
+            score: Math.round(starRating * 10) / 10, // Round to 1 decimal
             votes: totalVotes,
             has_rating: true,
             unrated: false
           };
+        } else if (voteData.score) {
+          // Fallback to vote_data if available
+          const score = parseFloat(voteData.score);
+          const votes = parseInt(voteData.votes || 0);
+          
+          if (votes > 0) {
+            rating = {
+              score: Math.round((score * 5) * 10) / 10,
+              votes: votes,
+              has_rating: true,
+              unrated: false
+            };
+          }
         }
+
+        console.log('Final rating:', {
+          itemId: item.publishedfileid,
+          title: item.title,
+          rating
+        });
         
         return {
           ...item,
