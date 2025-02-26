@@ -162,43 +162,59 @@ export async function handler(event) {
     // Get details for the found items
     const fileIds = filteredDetails.map(item => item.publishedfileid);
     
-    const detailsUrl = 'https://api.steampowered.com/IPublishedFileService/GetDetails/v1/';
-    const detailsParams = new URLSearchParams();
-    detailsParams.append('key', apiKey);
-    detailsParams.append('itemcount', fileIds.length.toString());
-    fileIds.forEach((id, index) => {
-      detailsParams.append(`publishedfileids[${index}]`, id);
-    });
+    async function getItemDetails(fileIds) {
+      // Try the PublishedFileService endpoint first
+      try {
+        const detailsUrl = 'https://api.steampowered.com/IPublishedFileService/GetDetails/v1/';
+        const params = new URLSearchParams({
+          key: apiKey,
+          itemcount: fileIds.length.toString(),
+          include_votes: '1',
+          include_vote_data: '1',
+          strip_description_bbcode: '1',
+          return_short_description: '1',
+          return_metadata: '1',
+          return_playtime_stats: '1',
+          return_tags: '1',
+          return_previews: '1',
+          return_reactions: '1',
+          return_reviews: '1'
+        });
 
-    // Add these specific parameters
-    detailsParams.append('include_votes', '1');
-    detailsParams.append('include_vote_data', '1');
-    detailsParams.append('strip_description_bbcode', '1');
-    detailsParams.append('return_short_description', '1');
-    detailsParams.append('return_metadata', '1');
-    detailsParams.append('return_playtime_stats', '1');
-    detailsParams.append('return_tags', '1');
-    detailsParams.append('return_previews', '1');
-    detailsParams.append('return_reactions', '1');
-    detailsParams.append('return_reviews', '1');
+        fileIds.forEach((id, index) => {
+          params.append(`publishedfileids[${index}]`, id);
+        });
 
-    // Log the full URL for debugging
-    console.log('Details URL:', `${detailsUrl}?${detailsParams.toString()}`);
+        const response = await fetch(`${detailsUrl}?${params.toString()}`);
+        if (!response.ok) throw new Error(`API returned ${response.status}`);
+        
+        return await response.json();
+      } catch (error) {
+        // Fallback to the original endpoint
+        console.log('Falling back to original endpoint...');
+        const fallbackUrl = 'https://api.steampowered.com/ISteamRemoteStorage/GetPublishedFileDetails/v1/';
+        const params = new URLSearchParams({
+          itemcount: fileIds.length.toString()
+        });
+        
+        fileIds.forEach((id, index) => {
+          params.append(`publishedfileids[${index}]`, id);
+        });
 
-    const detailsResponse = await fetch(detailsUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded'
-      },
-      body: detailsParams
-    });
+        const response = await fetch(fallbackUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded'
+          },
+          body: params.toString()
+        });
 
-    if (!detailsResponse.ok) {
-      throw new Error(`Details API returned ${detailsResponse.status}`);
+        if (!response.ok) throw new Error(`Fallback API returned ${response.status}`);
+        return await response.json();
+      }
     }
 
-    const detailsData = await detailsResponse.json();
-    console.log('Details response:', JSON.stringify(detailsData, null, 2));
+    const detailsData = await getItemDetails(fileIds);
 
     // After getting the details response
     console.log('Workshop item details:', JSON.stringify(
