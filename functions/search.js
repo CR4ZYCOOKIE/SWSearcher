@@ -232,25 +232,31 @@ export async function handler(event) {
         const user = userMap.get(item.creator);
         const changelog = await fetchWorkshopChangelog(apiKey, item.publishedfileid);
         
-        console.log('Workshop item:', {
-          id: item.publishedfileid,
-          title: item.title,
-          hasChangelog: !!changelog,
-          changelogPreview: changelog ? changelog.substring(0, 100) + '...' : 'None'
-        });
-        
-        // Ensure rating is properly formatted
-        const rating = {
-          score: item.vote_data?.score || 0,
-          votes: item.vote_data?.votes || 0
+        // Fix rating calculation
+        let rating = {
+          score: 0,
+          votes: 0
         };
+
+        if (item.vote_data) {
+          const voteScore = parseFloat(item.vote_data.score) || 0;
+          const voteCount = parseInt(item.vote_data.votes) || 0;
+          
+          if (voteCount > 0) {
+            // Steam returns score as 0-1, convert to 0-5 scale
+            rating = {
+              score: Math.round((voteScore * 5) * 10) / 10, // Round to 1 decimal
+              votes: voteCount
+            };
+          }
+        }
         
         return {
           ...item,
           creator_name: user?.personaname || 'Unknown',
           creator_profile: user?.profileurl || null,
           change_notes: changelog || undefined,
-          rating: rating
+          rating: rating // Use the properly calculated rating
         };
       })
     );
