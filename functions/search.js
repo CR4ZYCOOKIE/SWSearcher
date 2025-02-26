@@ -82,16 +82,59 @@ async function fetchWorkshopChangelog(apiKey, fileId) {
 
 // After getting the file IDs, fetch the vote data separately
 async function getVoteData(apiKey, publishedFileId) {
-  const voteUrl = `https://api.steampowered.com/IPublishedFileService/GetDetails/v1/?key=${apiKey}&publishedfileids[0]=${publishedFileId}&include_votes=1&strip_description_bbcode=1`;
+  // Use the PublishedFileService endpoint instead
+  const voteUrl = `https://api.steampowered.com/IPublishedFileService/GetDetails/v1/`;
+  
+  const params = new URLSearchParams({
+    key: apiKey,
+    publishedfileids[0]: publishedFileId,
+    include_votes: 1,
+    include_children: 0,
+    strip_description_bbcode: 1,
+    return_short_description: 1,
+    return_metadata: 1,
+    return_playtime_stats: 1,
+    return_children: 0,
+    return_tags: 1,
+    return_previews: 1,
+    return_reactions: 1,
+    return_reviews: 1
+  });
+
+  console.log(`Fetching vote data for item ${publishedFileId}...`);
   
   try {
-    const response = await fetch(voteUrl);
-    if (!response.ok) return null;
+    const response = await fetch(voteUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded'
+      },
+      body: params.toString()
+    });
+
+    if (!response.ok) {
+      console.error(`Vote API returned ${response.status} for item ${publishedFileId}`);
+      return null;
+    }
     
     const data = await response.json();
-    return data.response?.publishedfiledetails?.[0];
+    console.log('Vote API response:', JSON.stringify(data, null, 2));
+
+    const details = data.response?.publishedfiledetails?.[0];
+    if (details) {
+      console.log('Vote details found:', {
+        itemId: publishedFileId,
+        votes_up: details.votes_up,
+        votes_down: details.votes_down,
+        score: details.score,
+        stars: details.stars,
+        lifetime_votes: details.lifetime_votes
+      });
+    }
+
+    return details;
   } catch (error) {
-    console.error('Error fetching vote data:', error);
+    console.error(`Error fetching vote data for item ${publishedFileId}:`, error);
     return null;
   }
 }
@@ -258,12 +301,6 @@ export async function handler(event) {
         // Get vote data from the correct endpoint
         const voteDetails = await getVoteData(apiKey, item.publishedfileid);
         
-        console.log('Vote details from API:', {
-          itemId: item.publishedfileid,
-          title: item.title,
-          voteDetails
-        });
-
         let rating = {
           score: null,
           votes: 0,
@@ -272,22 +309,33 @@ export async function handler(event) {
         };
 
         if (voteDetails) {
-          const votesUp = parseInt(voteDetails.votes_up || 0);
-          const votesDown = parseInt(voteDetails.votes_down || 0);
-          const totalVotes = votesUp + votesDown;
+          // Try multiple ways to get vote data
+          const votesUp = parseInt(voteDetails.votes_up || voteDetails.vote_up || 0);
+          const votesDown = parseInt(voteDetails.votes_down || voteDetails.vote_down || 0);
+          const totalVotes = parseInt(voteDetails.lifetime_votes || 0) || (votesUp + votesDown);
+          const directScore = parseFloat(voteDetails.score || 0);
+
+          console.log('Processing votes for item:', {
+            itemId: item.publishedfileid,
+            title: item.title,
+            votesUp,
+            votesDown,
+            totalVotes,
+            directScore,
+            rawVoteDetails: voteDetails
+          });
 
           if (totalVotes > 0) {
-            const score = votesUp / totalVotes;
+            // If we have a direct score, use it, otherwise calculate from up/down votes
+            const score = directScore || (votesUp / totalVotes);
             const starRating = score * 5;
 
-            console.log('Calculated rating:', {
+            console.log('Final rating calculation:', {
               itemId: item.publishedfileid,
               title: item.title,
-              votesUp,
-              votesDown,
-              totalVotes,
               score,
-              starRating
+              starRating,
+              totalVotes
             });
 
             rating = {
