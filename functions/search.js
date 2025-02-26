@@ -163,45 +163,21 @@ export async function handler(event) {
     const fileIds = filteredDetails.map(item => item.publishedfileid);
     
     async function getItemDetails(fileIds) {
-      // Try the PublishedFileService endpoint first
+      // Try the ISteamUGC endpoint first
       try {
-        const detailsUrl = 'https://api.steampowered.com/IPublishedFileService/GetDetails/v1/';
+        const detailsUrl = 'https://api.steampowered.com/ISteamUGC/GetPublishedFileDetails/v1/';
         const params = new URLSearchParams({
-          key: apiKey,
-          itemcount: fileIds.length.toString(),
-          include_votes: '1',
-          include_vote_data: '1',
-          strip_description_bbcode: '1',
-          return_short_description: '1',
-          return_metadata: '1',
-          return_playtime_stats: '1',
-          return_tags: '1',
-          return_previews: '1',
-          return_reactions: '1',
-          return_reviews: '1'
-        });
-
-        fileIds.forEach((id, index) => {
-          params.append(`publishedfileids[${index}]`, id);
-        });
-
-        const response = await fetch(`${detailsUrl}?${params.toString()}`);
-        if (!response.ok) throw new Error(`API returned ${response.status}`);
-        
-        return await response.json();
-      } catch (error) {
-        // Fallback to the original endpoint
-        console.log('Falling back to original endpoint...');
-        const fallbackUrl = 'https://api.steampowered.com/ISteamRemoteStorage/GetPublishedFileDetails/v1/';
-        const params = new URLSearchParams({
-          itemcount: fileIds.length.toString()
+          key: apiKey
         });
         
         fileIds.forEach((id, index) => {
           params.append(`publishedfileids[${index}]`, id);
         });
+        params.append('itemcount', fileIds.length.toString());
 
-        const response = await fetch(fallbackUrl, {
+        console.log('Trying ISteamUGC endpoint...');
+        
+        const response = await fetch(detailsUrl, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/x-www-form-urlencoded'
@@ -209,8 +185,45 @@ export async function handler(event) {
           body: params.toString()
         });
 
-        if (!response.ok) throw new Error(`Fallback API returned ${response.status}`);
-        return await response.json();
+        if (!response.ok) throw new Error(`API returned ${response.status}`);
+        
+        const data = await response.json();
+        console.log('ISteamUGC response:', JSON.stringify(data, null, 2));
+        return data;
+      } catch (firstError) {
+        console.log('First endpoint failed, trying fallback...', firstError);
+        
+        // Fallback to the RemoteStorage endpoint
+        try {
+          const fallbackUrl = 'https://api.steampowered.com/ISteamRemoteStorage/GetPublishedFileDetails/v1/';
+          const params = new URLSearchParams({
+            key: apiKey
+          });
+          
+          fileIds.forEach((id, index) => {
+            params.append(`publishedfileids[${index}]`, id);
+          });
+          params.append('itemcount', fileIds.length.toString());
+
+          console.log('Trying RemoteStorage endpoint...');
+          
+          const response = await fetch(fallbackUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/x-www-form-urlencoded'
+            },
+            body: params.toString()
+          });
+
+          if (!response.ok) throw new Error(`Fallback API returned ${response.status}`);
+          
+          const data = await response.json();
+          console.log('RemoteStorage response:', JSON.stringify(data, null, 2));
+          return data;
+        } catch (secondError) {
+          console.error('Both endpoints failed:', secondError);
+          throw secondError;
+        }
       }
     }
 
@@ -248,23 +261,22 @@ export async function handler(event) {
         const user = userMap.get(item.creator);
         const changelog = await fetchWorkshopChangelog(apiKey, item.publishedfileid);
         
-        // Log all possible vote-related fields
-        console.log('All vote-related fields:', {
-          id: item.publishedfileid,
+        // Log the raw item first
+        console.log('Raw item data:', JSON.stringify(item, null, 2));
+
+        // Try to get vote data from different possible locations
+        const voteData = {
+          votesUp: parseInt(item.votes_up || item.vote_up || item.upvotes || item.subscriptions || 0),
+          votesDown: parseInt(item.votes_down || item.vote_down || item.downvotes || 0),
+          totalVotes: parseInt(item.total_votes || item.lifetime_votes || item.subscriptions || 0),
+          score: parseFloat(item.score || item.vote_score || 0),
+          favorited: parseInt(item.favorited || 0)
+        };
+
+        console.log('Processed vote data:', {
+          itemId: item.publishedfileid,
           title: item.title,
-          votes_up: item.votes_up,
-          vote_up: item.vote_up,
-          upvotes: item.upvotes,
-          votes_down: item.votes_down,
-          vote_down: item.vote_down,
-          downvotes: item.downvotes,
-          score: item.score,
-          vote_score: item.vote_score,
-          vote_data: item.vote_data,
-          lifetime_votes: item.lifetime_votes,
-          total_votes: item.total_votes,
-          positive_votes_percent: item.positive_votes_percent,
-          raw_item: item // Log the entire item to see all fields
+          ...voteData
         });
 
         let rating = {
@@ -274,22 +286,25 @@ export async function handler(event) {
           unrated: true
         };
 
-        // Try all possible vote field combinations
-        const votesUp = parseInt(item.votes_up || item.vote_up || item.upvotes || 0);
-        const votesDown = parseInt(item.votes_down || item.vote_down || item.downvotes || 0);
-        const totalVotes = parseInt(item.total_votes || item.lifetime_votes || 0) || (votesUp + votesDown);
-        const positivePercent = parseFloat(item.positive_votes_percent || item.score || 0);
-
-        if (totalVotes > 0) {
-          const score = positivePercent / 100; // Convert percentage to 0-1 scale
-          const starRating = score * 5;
-
-          rating = {
-            score: Math.round(starRating * 10) / 10,
-            votes: totalVotes,
-            has_rating: true,
-            unrated: false
-          };
+        if (voteData.totalVotes > 0 || voteData.favorited > 0) {
+          // If we have a direct score, use it
+          if (voteData.score > 0) {
+            rating = {
+              score: Math.round((voteData.score * 5) * 10) / 10,
+              votes: voteData.totalVotes,
+              has_rating: true,
+              unrated: false
+            };
+          } 
+          // Otherwise calculate from favorited count
+          else if (voteData.favorited > 0) {
+            rating = {
+              score: 5, // Assume 5 stars if favorited
+              votes: voteData.favorited,
+              has_rating: true,
+              unrated: false
+            };
+          }
         }
 
         return {
