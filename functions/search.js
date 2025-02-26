@@ -82,14 +82,10 @@ async function fetchWorkshopChangelog(apiKey, fileId) {
 
 // After getting the file IDs, fetch the vote data separately
 async function getVoteData(apiKey, publishedFileId) {
-  // Use the PublishedFileService endpoint instead
-  const voteUrl = `https://api.steampowered.com/IPublishedFileService/GetDetails/v1/`;
-  
+  // Use GET request with parameters in URL
   const params = new URLSearchParams({
     key: apiKey,
-    publishedfileids[0]: publishedFileId,
     include_votes: 1,
-    include_children: 0,
     strip_description_bbcode: 1,
     return_short_description: 1,
     return_metadata: 1,
@@ -100,17 +96,16 @@ async function getVoteData(apiKey, publishedFileId) {
     return_reactions: 1,
     return_reviews: 1
   });
+  
+  // Add publishedfileids parameter separately to handle array syntax
+  params.append('publishedfileids[0]', publishedFileId);
 
+  const voteUrl = `https://api.steampowered.com/IPublishedFileService/GetDetails/v1/?${params}`;
+  
   console.log(`Fetching vote data for item ${publishedFileId}...`);
   
   try {
-    const response = await fetch(voteUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded'
-      },
-      body: params.toString()
-    });
+    const response = await fetch(voteUrl);
 
     if (!response.ok) {
       console.error(`Vote API returned ${response.status} for item ${publishedFileId}`);
