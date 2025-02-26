@@ -80,6 +80,22 @@ async function fetchWorkshopChangelog(apiKey, fileId) {
   }
 }
 
+// After getting the file IDs, fetch the vote data separately
+async function getVoteData(apiKey, publishedFileId) {
+  const voteUrl = `https://api.steampowered.com/IPublishedFileService/GetDetails/v1/?key=${apiKey}&publishedfileids[0]=${publishedFileId}&include_votes=1&strip_description_bbcode=1`;
+  
+  try {
+    const response = await fetch(voteUrl);
+    if (!response.ok) return null;
+    
+    const data = await response.json();
+    return data.response?.publishedfiledetails?.[0];
+  } catch (error) {
+    console.error('Error fetching vote data:', error);
+    return null;
+  }
+}
+
 export async function handler(event) {
   const headers = {
     'Access-Control-Allow-Origin': '*',
@@ -239,15 +255,13 @@ export async function handler(event) {
         const user = userMap.get(item.creator);
         const changelog = await fetchWorkshopChangelog(apiKey, item.publishedfileid);
         
-        // Debug log the entire item to see all available fields
-        console.log('Full item data:', {
-          id: item.publishedfileid,
+        // Get vote data from the correct endpoint
+        const voteDetails = await getVoteData(apiKey, item.publishedfileid);
+        
+        console.log('Vote details from API:', {
+          itemId: item.publishedfileid,
           title: item.title,
-          vote_data: item.vote_data,
-          votes_up: item.votes_up,
-          votes_down: item.votes_down,
-          score: item.score,
-          // Log any other potentially relevant fields
+          voteDetails
         });
 
         let rating = {
@@ -257,64 +271,34 @@ export async function handler(event) {
           unrated: true
         };
 
-        // Try different ways Steam might provide the rating data
-        const votesUp = parseInt(item.votes_up || item.vote_up || 0);
-        const votesDown = parseInt(item.votes_down || item.vote_down || 0);
-        const voteData = item.vote_data || {};
-        const subscriptions = parseInt(item.subscriptions || 0);
-
-        console.log('Vote data found:', {
-          itemId: item.publishedfileid,
-          title: item.title,
-          votesUp,
-          votesDown,
-          voteData,
-          subscriptions,
-          rawVoteData: item.vote_data,
-          rawScore: item.score,
-          favorited: item.favorited
-        });
-
-        if (votesUp > 0 || votesDown > 0) {
+        if (voteDetails) {
+          const votesUp = parseInt(voteDetails.votes_up || 0);
+          const votesDown = parseInt(voteDetails.votes_down || 0);
           const totalVotes = votesUp + votesDown;
-          const score = votesUp / totalVotes; // Calculate percentage of positive votes
-          const starRating = score * 5; // Convert to 5-star scale
 
-          console.log('Calculated rating:', {
-            itemId: item.publishedfileid,
-            title: item.title,
-            totalVotes,
-            score,
-            starRating
-          });
+          if (totalVotes > 0) {
+            const score = votesUp / totalVotes;
+            const starRating = score * 5;
 
-          rating = {
-            score: Math.round(starRating * 10) / 10, // Round to 1 decimal
-            votes: totalVotes,
-            has_rating: true,
-            unrated: false
-          };
-        } else if (voteData.score) {
-          // Fallback to vote_data if available
-          const score = parseFloat(voteData.score);
-          const votes = parseInt(voteData.votes || 0);
-          
-          if (votes > 0) {
+            console.log('Calculated rating:', {
+              itemId: item.publishedfileid,
+              title: item.title,
+              votesUp,
+              votesDown,
+              totalVotes,
+              score,
+              starRating
+            });
+
             rating = {
-              score: Math.round((score * 5) * 10) / 10,
-              votes: votes,
+              score: Math.round(starRating * 10) / 10,
+              votes: totalVotes,
               has_rating: true,
               unrated: false
             };
           }
         }
 
-        console.log('Final rating:', {
-          itemId: item.publishedfileid,
-          title: item.title,
-          rating
-        });
-        
         return {
           ...item,
           creator_name: user?.personaname || 'Unknown',

@@ -40,12 +40,15 @@ export async function handler(event) {
       query_type: '1',
       search_text: query || '',
       numperpage: '10',
-      return_tags: 'true',
-      return_details: 'true',
-      return_metadata: 'true',
-      return_vote_data: 'true',
-      return_subscriptions: 'true',
-      return_ratings: 'true',
+      include_votes: '1',
+      strip_description_bbcode: '1',
+      return_vote_data: '1',
+      return_children: '0',
+      return_short_description: '1',
+      return_metadata: '1',
+      return_playtime_stats: '1',
+      return_details: '1',
+      return_tags: '1',
       format: 'json'
     });
 
