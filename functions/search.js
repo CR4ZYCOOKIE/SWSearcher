@@ -234,7 +234,7 @@ export async function handler(event) {
         
         // Fix rating calculation
         let rating = {
-          score: 0,
+          score: null,  // Changed from 0 to null for unrated items
           votes: 0
         };
 
@@ -251,12 +251,14 @@ export async function handler(event) {
           }
         }
         
+        // Add a helper property to clearly indicate unrated status
         return {
           ...item,
           creator_name: user?.personaname || 'Unknown',
           creator_profile: user?.profileurl || null,
           change_notes: changelog || undefined,
-          rating: rating // Use the properly calculated rating
+          rating: rating,
+          has_rating: rating.votes > 0
         };
       })
     );
