@@ -162,6 +162,7 @@ export async function handler(event) {
     // Get details for the found items
     const fileIds = filteredDetails.map(item => item.publishedfileid);
     
+    const detailsUrl = 'https://api.steampowered.com/IPublishedFileService/GetDetails/v1/';
     const detailsParams = new URLSearchParams();
     detailsParams.append('key', apiKey);
     detailsParams.append('itemcount', fileIds.length.toString());
@@ -169,29 +170,20 @@ export async function handler(event) {
       detailsParams.append(`publishedfileids[${index}]`, id);
     });
 
-    // Ensure we get all the vote data
+    // Add these specific parameters
     detailsParams.append('include_votes', '1');
     detailsParams.append('include_vote_data', '1');
-    detailsParams.append('return_vote_data', '1');
-    detailsParams.append('return_children', '0');
+    detailsParams.append('strip_description_bbcode', '1');
     detailsParams.append('return_short_description', '1');
-    detailsParams.append('return_details', '1');
+    detailsParams.append('return_metadata', '1');
+    detailsParams.append('return_playtime_stats', '1');
     detailsParams.append('return_tags', '1');
     detailsParams.append('return_previews', '1');
     detailsParams.append('return_reactions', '1');
     detailsParams.append('return_reviews', '1');
 
-    // Existing parameters
-    detailsParams.append('return_change_notes', '1');
-    detailsParams.append('strip_description_bbcode', '0');
-    detailsParams.append('return_metadata', '1');
-    detailsParams.append('return_kv_tags', '1');
-    detailsParams.append('return_assets', '1');
-    detailsParams.append('return_languages', '1');
-
-    const detailsUrl = 'https://api.steampowered.com/ISteamRemoteStorage/GetPublishedFileDetails/v1/';
-    console.log('Getting details for IDs:', fileIds);
-    console.log('Details request params:', detailsParams.toString());
+    // Log the full URL for debugging
+    console.log('Details URL:', `${detailsUrl}?${detailsParams.toString()}`);
 
     const detailsResponse = await fetch(detailsUrl, {
       method: 'POST',
@@ -240,15 +232,23 @@ export async function handler(event) {
         const user = userMap.get(item.creator);
         const changelog = await fetchWorkshopChangelog(apiKey, item.publishedfileid);
         
-        // Log the raw item data to see what we're getting
-        console.log('Raw item data:', {
+        // Log all possible vote-related fields
+        console.log('All vote-related fields:', {
           id: item.publishedfileid,
           title: item.title,
           votes_up: item.votes_up,
+          vote_up: item.vote_up,
+          upvotes: item.upvotes,
           votes_down: item.votes_down,
-          subscriptions: item.subscriptions,
-          favorited: item.favorited,
-          lifetime_subscriptions: item.lifetime_subscriptions
+          vote_down: item.vote_down,
+          downvotes: item.downvotes,
+          score: item.score,
+          vote_score: item.vote_score,
+          vote_data: item.vote_data,
+          lifetime_votes: item.lifetime_votes,
+          total_votes: item.total_votes,
+          positive_votes_percent: item.positive_votes_percent,
+          raw_item: item // Log the entire item to see all fields
         });
 
         let rating = {
@@ -258,30 +258,15 @@ export async function handler(event) {
           unrated: true
         };
 
-        // Get vote data directly from the item
-        const votesUp = parseInt(item.votes_up || 0);
-        const votesDown = parseInt(item.votes_down || 0);
-        const totalVotes = votesUp + votesDown;
-
-        console.log('Processing votes for item:', {
-          itemId: item.publishedfileid,
-          title: item.title,
-          votesUp,
-          votesDown,
-          totalVotes
-        });
+        // Try all possible vote field combinations
+        const votesUp = parseInt(item.votes_up || item.vote_up || item.upvotes || 0);
+        const votesDown = parseInt(item.votes_down || item.vote_down || item.downvotes || 0);
+        const totalVotes = parseInt(item.total_votes || item.lifetime_votes || 0) || (votesUp + votesDown);
+        const positivePercent = parseFloat(item.positive_votes_percent || item.score || 0);
 
         if (totalVotes > 0) {
-          const score = votesUp / totalVotes;
+          const score = positivePercent / 100; // Convert percentage to 0-1 scale
           const starRating = score * 5;
-
-          console.log('Final rating calculation:', {
-            itemId: item.publishedfileid,
-            title: item.title,
-            score,
-            starRating,
-            totalVotes
-          });
 
           rating = {
             score: Math.round(starRating * 10) / 10,
