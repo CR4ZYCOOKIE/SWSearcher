@@ -239,11 +239,18 @@ export async function handler(event) {
           changelogPreview: changelog ? changelog.substring(0, 100) + '...' : 'None'
         });
         
+        // Ensure rating is properly formatted
+        const rating = {
+          score: item.vote_data?.score || 0,
+          votes: item.vote_data?.votes || 0
+        };
+        
         return {
           ...item,
           creator_name: user?.personaname || 'Unknown',
           creator_profile: user?.profileurl || null,
-          change_notes: changelog || undefined
+          change_notes: changelog || undefined,
+          rating: rating
         };
       })
     );

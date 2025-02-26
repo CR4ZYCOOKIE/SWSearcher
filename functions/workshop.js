@@ -76,4 +76,28 @@ exports.handler = async function(event) {
       body: JSON.stringify({ error: error.message })
     };
   }
-}; 
+};
+
+function processWorkshopData(data) {
+    // ... existing code ...
+
+    // Find where we process the rating
+    const rating = item.vote_data ? {
+        score: parseFloat(item.vote_data.score) || 0,
+        votes: parseInt(item.vote_data.votes) || 0
+    } : {
+        score: 0,
+        votes: 0
+    };
+
+    // Convert score to 5-star scale and handle edge cases
+    const fiveStarRating = rating.votes > 0 ? (rating.score * 5) : 0;
+
+    return {
+        // ... other properties ...
+        rating: {
+            score: Math.round(fiveStarRating * 10) / 10, // Round to 1 decimal place
+            votes: rating.votes
+        }
+    };
+} 
