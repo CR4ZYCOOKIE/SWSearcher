@@ -232,28 +232,43 @@ export async function handler(event) {
         const user = userMap.get(item.creator);
         const changelog = await fetchWorkshopChangelog(apiKey, item.publishedfileid);
         
-        // Fix rating calculation
+        // Add debug logging for the raw vote data
+        console.log('Raw vote data for item:', {
+          itemId: item.publishedfileid,
+          title: item.title,
+          vote_data: item.vote_data,
+          vote_summary: item.vote_summary
+        });
+
         let rating = {
-          score: null,  // Changed from 0 to null for unrated items
+          score: null,
           votes: 0,
-          has_rating: false,  // Add explicit flag
-          unrated: true      // Add explicit unrated flag
+          has_rating: false,
+          unrated: true
         };
 
-        if (item.vote_data) {
-          const voteScore = parseFloat(item.vote_data.score) || 0;
-          const voteCount = parseInt(item.vote_data.votes) || 0;
+        // Steam might provide vote data in different fields, let's check both
+        if (item.vote_data || item.vote_summary) {
+          // Try vote_data first
+          const voteScore = parseFloat(item.vote_data?.score) || 0;
+          const voteCount = parseInt(item.vote_data?.votes) || parseInt(item.vote_summary?.total) || 0;
           
-          console.log(`Processing rating for item ${item.publishedfileid}:`, {
-            rawScore: item.vote_data.score,
-            parsedScore: voteScore,
-            rawVotes: item.vote_data.votes,
-            parsedVotes: voteCount
+          console.log('Processing votes:', {
+            itemId: item.publishedfileid,
+            title: item.title,
+            voteScore,
+            voteCount,
+            rawVoteData: item.vote_data,
+            rawVoteSummary: item.vote_summary
           });
           
           if (voteCount > 0) {
             const starRating = voteScore * 5;
-            console.log(`Calculated star rating: ${starRating}`);
+            console.log(`Calculated star rating for ${item.title}:`, {
+              voteScore,
+              starRating,
+              voteCount
+            });
             
             rating = {
               score: Math.round(starRating * 10) / 10,
@@ -261,13 +276,15 @@ export async function handler(event) {
               has_rating: true,
               unrated: false
             };
-          } else {
-            console.log('Item has no votes, keeping null rating');
           }
         }
         
         // Log the final rating object
-        console.log(`Final rating for item ${item.publishedfileid}:`, rating);
+        console.log('Final rating object:', {
+          itemId: item.publishedfileid,
+          title: item.title,
+          rating
+        });
         
         // Add a helper property to clearly indicate unrated status
         return {
