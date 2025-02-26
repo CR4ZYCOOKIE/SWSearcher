@@ -235,7 +235,9 @@ export async function handler(event) {
         // Fix rating calculation
         let rating = {
           score: null,  // Changed from 0 to null for unrated items
-          votes: 0
+          votes: 0,
+          has_rating: false,  // Add explicit flag
+          unrated: true      // Add explicit unrated flag
         };
 
         if (item.vote_data) {
@@ -254,8 +256,10 @@ export async function handler(event) {
             console.log(`Calculated star rating: ${starRating}`);
             
             rating = {
-              score: Math.round(starRating * 10) / 10, // Round to 1 decimal
-              votes: voteCount
+              score: Math.round(starRating * 10) / 10,
+              votes: voteCount,
+              has_rating: true,
+              unrated: false
             };
           } else {
             console.log('Item has no votes, keeping null rating');
@@ -271,8 +275,7 @@ export async function handler(event) {
           creator_name: user?.personaname || 'Unknown',
           creator_profile: user?.profileurl || null,
           change_notes: changelog || undefined,
-          rating: rating,
-          has_rating: rating.votes > 0
+          rating: rating
         };
       })
     );

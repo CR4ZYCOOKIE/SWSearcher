@@ -5,13 +5,20 @@ export interface WorkshopAuthor {
   workshopUrl: string;
 }
 
+interface Rating {
+  score: number | null;
+  votes: number;
+  has_rating: boolean;
+  unrated: boolean;
+}
+
 export interface WorkshopItem {
   id: string;
   title: string;
   description: string;
   author: WorkshopAuthor;
   thumbnailUrl: string;
-  rating: number;
+  rating: Rating;
   downloads: number;
   lastUpdated: string;
   tags: string[];
