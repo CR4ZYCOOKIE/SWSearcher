@@ -80,60 +80,6 @@ async function fetchWorkshopChangelog(apiKey, fileId) {
   }
 }
 
-// After getting the file IDs, fetch the vote data separately
-async function getVoteData(apiKey, publishedFileId) {
-  // Use GET request with parameters in URL
-  const params = new URLSearchParams({
-    key: apiKey,
-    include_votes: 1,
-    strip_description_bbcode: 1,
-    return_short_description: 1,
-    return_metadata: 1,
-    return_playtime_stats: 1,
-    return_children: 0,
-    return_tags: 1,
-    return_previews: 1,
-    return_reactions: 1,
-    return_reviews: 1
-  });
-  
-  // Add publishedfileids parameter separately to handle array syntax
-  params.append('publishedfileids[0]', publishedFileId);
-
-  const voteUrl = `https://api.steampowered.com/IPublishedFileService/GetDetails/v1/?${params}`;
-  
-  console.log(`Fetching vote data for item ${publishedFileId}...`);
-  
-  try {
-    const response = await fetch(voteUrl);
-
-    if (!response.ok) {
-      console.error(`Vote API returned ${response.status} for item ${publishedFileId}`);
-      return null;
-    }
-    
-    const data = await response.json();
-    console.log('Vote API response:', JSON.stringify(data, null, 2));
-
-    const details = data.response?.publishedfiledetails?.[0];
-    if (details) {
-      console.log('Vote details found:', {
-        itemId: publishedFileId,
-        votes_up: details.votes_up,
-        votes_down: details.votes_down,
-        score: details.score,
-        stars: details.stars,
-        lifetime_votes: details.lifetime_votes
-      });
-    }
-
-    return details;
-  } catch (error) {
-    console.error(`Error fetching vote data for item ${publishedFileId}:`, error);
-    return null;
-  }
-}
-
 export async function handler(event) {
   const headers = {
     'Access-Control-Allow-Origin': '*',
@@ -223,22 +169,23 @@ export async function handler(event) {
       detailsParams.append(`publishedfileids[${index}]`, id);
     });
 
-    // Add these parameters to get vote data
+    // Ensure we get all the vote data
+    detailsParams.append('include_votes', '1');
+    detailsParams.append('include_vote_data', '1');
     detailsParams.append('return_vote_data', '1');
-    detailsParams.append('return_reviews', '1');
+    detailsParams.append('return_children', '0');
+    detailsParams.append('return_short_description', '1');
+    detailsParams.append('return_details', '1');
+    detailsParams.append('return_tags', '1');
+    detailsParams.append('return_previews', '1');
     detailsParams.append('return_reactions', '1');
-    detailsParams.append('return_playtime_stats', '1');
+    detailsParams.append('return_reviews', '1');
 
     // Existing parameters
     detailsParams.append('return_change_notes', '1');
     detailsParams.append('strip_description_bbcode', '0');
-    detailsParams.append('return_children', '0');
-    detailsParams.append('return_short_description', '1');
-    detailsParams.append('return_details', '1');
     detailsParams.append('return_metadata', '1');
     detailsParams.append('return_kv_tags', '1');
-    detailsParams.append('return_tags', '1');
-    detailsParams.append('return_previews', '1');
     detailsParams.append('return_assets', '1');
     detailsParams.append('return_languages', '1');
 
@@ -293,9 +240,17 @@ export async function handler(event) {
         const user = userMap.get(item.creator);
         const changelog = await fetchWorkshopChangelog(apiKey, item.publishedfileid);
         
-        // Get vote data from the correct endpoint
-        const voteDetails = await getVoteData(apiKey, item.publishedfileid);
-        
+        // Log the raw item data to see what we're getting
+        console.log('Raw item data:', {
+          id: item.publishedfileid,
+          title: item.title,
+          votes_up: item.votes_up,
+          votes_down: item.votes_down,
+          subscriptions: item.subscriptions,
+          favorited: item.favorited,
+          lifetime_subscriptions: item.lifetime_subscriptions
+        });
+
         let rating = {
           score: null,
           votes: 0,
@@ -303,43 +258,37 @@ export async function handler(event) {
           unrated: true
         };
 
-        if (voteDetails) {
-          // Try multiple ways to get vote data
-          const votesUp = parseInt(voteDetails.votes_up || voteDetails.vote_up || 0);
-          const votesDown = parseInt(voteDetails.votes_down || voteDetails.vote_down || 0);
-          const totalVotes = parseInt(voteDetails.lifetime_votes || 0) || (votesUp + votesDown);
-          const directScore = parseFloat(voteDetails.score || 0);
+        // Get vote data directly from the item
+        const votesUp = parseInt(item.votes_up || 0);
+        const votesDown = parseInt(item.votes_down || 0);
+        const totalVotes = votesUp + votesDown;
 
-          console.log('Processing votes for item:', {
+        console.log('Processing votes for item:', {
+          itemId: item.publishedfileid,
+          title: item.title,
+          votesUp,
+          votesDown,
+          totalVotes
+        });
+
+        if (totalVotes > 0) {
+          const score = votesUp / totalVotes;
+          const starRating = score * 5;
+
+          console.log('Final rating calculation:', {
             itemId: item.publishedfileid,
             title: item.title,
-            votesUp,
-            votesDown,
-            totalVotes,
-            directScore,
-            rawVoteDetails: voteDetails
+            score,
+            starRating,
+            totalVotes
           });
 
-          if (totalVotes > 0) {
-            // If we have a direct score, use it, otherwise calculate from up/down votes
-            const score = directScore || (votesUp / totalVotes);
-            const starRating = score * 5;
-
-            console.log('Final rating calculation:', {
-              itemId: item.publishedfileid,
-              title: item.title,
-              score,
-              starRating,
-              totalVotes
-            });
-
-            rating = {
-              score: Math.round(starRating * 10) / 10,
-              votes: totalVotes,
-              has_rating: true,
-              unrated: false
-            };
-          }
+          rating = {
+            score: Math.round(starRating * 10) / 10,
+            votes: totalVotes,
+            has_rating: true,
+            unrated: false
+          };
         }
 
         return {
