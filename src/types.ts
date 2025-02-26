@@ -26,7 +26,5 @@ export interface WorkshopItem {
   banReason?: string;
   currentSubscribers: number;
   totalSubscribers: number;
-  currentRating: number;
-  totalRatings: number;
   changeNotes?: string;
 }

@@ -12,7 +12,7 @@ export const WorkshopItem: React.FC<WorkshopItemProps> = ({ item, onViewDetails 
   const steamUrl = `https://steamcommunity.com/sharedfiles/filedetails/?id=${item.id}`;
 
   const getRatingDisplay = () => {
-    if (item.rating.unrated || !item.rating.has_rating) {
+    if (item.rating.unrated || !item.rating.has_rating || item.rating.score === null) {
       return "No ratings yet";
     }
     return `${item.rating.score.toFixed(1)}/5 (${item.rating.votes} ratings)`;
@@ -77,8 +77,16 @@ export const WorkshopItem: React.FC<WorkshopItemProps> = ({ item, onViewDetails 
           <p className="text-gray-300 mt-3 line-clamp-2">{item.description}</p>
           
           <div className="flex gap-6 mt-4 text-sm text-gray-400">
-            <span title={item.rating.unrated ? "No ratings yet" : `${item.rating.score.toFixed(1)} out of 5 stars (${item.rating.votes} ratings)`}>
-              {item.rating.unrated ? "⭐ No ratings" : `⭐ ${item.rating.score.toFixed(1)}/5`}
+            <span 
+              title={
+                item.rating.unrated || !item.rating.has_rating || item.rating.score === null
+                  ? "No ratings yet" 
+                  : `${item.rating.score.toFixed(1)} out of 5 stars (${item.rating.votes} ratings)`
+              }
+            >
+              {item.rating.unrated || !item.rating.has_rating || item.rating.score === null
+                ? "⭐ No ratings" 
+                : `⭐ ${item.rating.score.toFixed(1)}/5`}
             </span>
             <span title={`${item.currentSubscribers.toLocaleString()} current subscribers out of ${item.totalSubscribers.toLocaleString()} total`}>
               📥 {item.downloads.toLocaleString()}

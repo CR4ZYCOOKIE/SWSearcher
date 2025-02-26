@@ -19,7 +19,7 @@ export const DetailsView: React.FC<DetailsViewProps> = ({ item, onBack }) => {
   });
 
   const getRatingDisplay = () => {
-    if (item.rating.unrated || !item.rating.has_rating) {
+    if (item.rating.unrated || !item.rating.has_rating || item.rating.score === null) {
       return "No ratings yet";
     }
     return `${item.rating.score.toFixed(1)}/5 (${item.rating.votes} ratings)`;
@@ -59,8 +59,16 @@ export const DetailsView: React.FC<DetailsViewProps> = ({ item, onBack }) => {
             </p>
 
             <div className="flex gap-6 text-sm text-gray-400 mb-6">
-              <span title={item.rating.unrated ? "No ratings yet" : `${item.rating.score.toFixed(1)} out of 5 stars (${item.rating.votes} ratings)`}>
-                {item.rating.unrated ? "⭐ No ratings" : `⭐ ${item.rating.score.toFixed(1)}/5`}
+              <span 
+                title={
+                  item.rating.unrated || !item.rating.has_rating || item.rating.score === null
+                    ? "No ratings yet" 
+                    : `${item.rating.score.toFixed(1)} out of 5 stars (${item.rating.votes} ratings)`
+                }
+              >
+                {item.rating.unrated || !item.rating.has_rating || item.rating.score === null
+                  ? "⭐ No ratings" 
+                  : `⭐ ${item.rating.score.toFixed(1)}/5`}
               </span>
               <span title={`${item.currentSubscribers.toLocaleString()} current subscribers out of ${item.totalSubscribers.toLocaleString()} total`}>
                 📥 {item.downloads.toLocaleString()}
